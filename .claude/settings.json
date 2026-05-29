@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "npx biome check --write --no-errors-on-unmatched $CLAUDE_FILE_PATH 2>/dev/null || true"
+      }
+    ]
+  }
+}
