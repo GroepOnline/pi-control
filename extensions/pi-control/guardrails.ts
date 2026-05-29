@@ -8,7 +8,8 @@
  *   turn monitoring → log tool gebruik per turn voor analyse
  */
 
-import type { ExtensionAPI, isToolCallEventType } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 
 export function registerGuardrails(pi: ExtensionAPI) {
   // ── Tool call guard — blokkeer gevaarlijke bash commando's ──────────
