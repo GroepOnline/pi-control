@@ -1,0 +1,23 @@
+# On PR events: sync this repo → Linear CHEF child issues (+ Notion when configured).
+# Copy to product repos via scripts/deploy_chef_pr_workflows.sh
+
+name: CHEF Linear + Notion Sync
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+
+concurrency:
+  group: chef-linear-notion-${{ github.event.pull_request.number || 'manual' }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    uses: OnlineChefGroep/OrgBeheer/.github/workflows/chef-dev-sync-reusable.yml@main
+    secrets:
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+    with:
+      repo: ${{ github.event.repository.name }}
