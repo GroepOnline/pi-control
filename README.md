@@ -1,6 +1,8 @@
-# pi-control
+# @groeponline/pi-control
 
-Pi-native runtime control and QA for operators and coding agents. The package exposes tools and commands for managing Pi sessions, models, active tools, state, verification flows, and guardrails, plus a companion skill.
+Pi-native runtime control and QA for operators and coding agents. `pi-control` exposes a small control plane for sessions, models, active tools, saved state, verification workflows, and guardrails without replacing Pi's agent runtime.
+
+[![npm](https://img.shields.io/npm/v/@groeponline/pi-control.svg)](https://www.npmjs.com/package/@groeponline/pi-control) [![Pi package](https://img.shields.io/badge/Pi-package-9b59b6.svg)](https://pi.dev/packages/@groeponline/pi-control) ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## Install
 
@@ -14,23 +16,66 @@ For one session only:
 pi -e npm:@groeponline/pi-control
 ```
 
-## Included surfaces
+## What it gives you
 
-- `/pi-demo` — demonstrate a concrete Pi workflow or feature.
-- `/pi-verify` — verify claims about Pi runtime behavior.
-- `/pi-qa` — structured QA for Pi functionality.
-- `pi_session` — inspect, fork, switch, compact, label, and rename sessions.
-- `pi_model` — list/switch models and manage thinking level.
-- `pi_tool` — inspect and change active tools.
-- `pi_state` — save, restore, diff, and inspect runtime state.
-- `pi_verify` — verify session, model, tool, and state expectations.
-- Guardrails and lifecycle hooks for safer agent operation.
-- `skills/pi-control` — operator guidance for using the extension effectively.
+| Surface | Purpose |
+| --- | --- |
+| `/pi-demo` | Demonstrate a concrete Pi workflow or feature with explicit verification. |
+| `/pi-verify` | Test claims about Pi runtime behavior and report evidence. |
+| `/pi-qa` | Run a structured QA flow and report PASS/FAIL evidence. |
+| `pi_session` | List, inspect, fork, switch, compact, label, and rename sessions. |
+| `pi_model` | List/switch models, inspect providers, and change thinking level. |
+| `pi_tool` | Inspect the tool inventory and change the active tool set. |
+| `pi_state` | Save, apply, diff, and inspect runtime state history. |
+| `pi_verify` | Verify session, tool-output, and behavioral expectations. |
+| Guardrails | Lifecycle and tool-call hooks for bounded operator workflows. |
+| `skills/pi-control` | Packaged operating guidance for control/verify/QA workflows. |
 
-## Pi package metadata
+## Operating model
 
-This repository is published as `@groeponline/pi-control` and carries the `pi-package` keyword required for Pi package-gallery discovery. Pi loads `extensions/pi-control/index.ts` and the bundled skills directory from the package manifest.
+`pi-control` acts on Pi's live runtime state. It does not create a second session store, model router, or remote control service. A normal workflow is capture → change → verify → report, with evidence coming from the same Pi process being controlled.
 
-## Source
+State-changing tools should be used deliberately: switching models, changing active tools, restoring state, or moving between sessions affects the current Pi process. The packaged skill documents the expected capture/verify discipline.
 
-Maintained by GroepOnline. Source and issue tracking live in this repository.
+## Package layout
+
+```text
+extensions/pi-control/
+  index.ts
+  tools.ts
+  guardrails.ts
+  commands/
+skills/pi-control/SKILL.md
+```
+
+Pi loads both the extension and the skill from the package manifest. The npm package carries the `pi-package`, `pi-extension`, and `pi-skill` discovery keywords.
+
+## Development
+
+Package boundary check:
+
+```bash
+npm run pack:check
+```
+
+Extension tests:
+
+```bash
+cd extensions/pi-control
+npm ci
+npm test
+```
+
+## Privacy and telemetry
+
+`pi-control` does not collect telemetry or send runtime data to external services. It operates on the local Pi process and any state or evidence it handles remains under the operator's control.
+
+## Source and issues
+
+- Pi catalog: <https://pi.dev/packages/@groeponline/pi-control>
+- Source: <https://github.com/GroepOnline/pi-control>
+- Issues: <https://github.com/GroepOnline/pi-control/issues>
+
+## License
+
+MIT © GroepOnline
