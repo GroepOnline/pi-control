@@ -62,7 +62,7 @@ Extension tests:
 
 ```bash
 cd extensions/pi-control
-npm install
+npm ci
 npm test
 ```
 
