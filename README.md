@@ -1,8 +1,12 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/GroepOnline/pi-control/main/docs/images/pi-control-hero.svg" alt="pi-control: capture, change, verify, evidence" width="100%">
+</p>
+
 # @groeponline/pi-control
 
-Pi-native runtime control and QA for operators and coding agents. `pi-control` exposes a small control plane for sessions, models, active tools, saved state, verification workflows, and guardrails without replacing Pi's agent runtime.
+Operate Pi without building a second runtime. `pi-control` gives humans and agents a compact control plane over the **live Pi process** — sessions, models, tools, saved state, verification, and guardrails — then makes every change prove itself with evidence.
 
-[![npm](https://img.shields.io/npm/v/@groeponline/pi-control.svg)](https://www.npmjs.com/package/@groeponline/pi-control) [![Pi package](https://img.shields.io/badge/Pi-package-9b59b6.svg)](https://pi.dev/packages/@groeponline/pi-control) ![License](https://img.shields.io/badge/license-MIT-green.svg)
+[![npm](https://img.shields.io/npm/v/@groeponline/pi-control.svg)](https://www.npmjs.com/package/@groeponline/pi-control) [![downloads](https://img.shields.io/npm/dm/@groeponline/pi-control.svg?label=downloads)](https://www.npmjs.com/package/@groeponline/pi-control) [![Pi package](https://img.shields.io/badge/Pi-package-9b59b6.svg)](https://pi.dev/packages/@groeponline/pi-control) ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## Install
 

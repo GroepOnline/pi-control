@@ -1,14 +1,14 @@
 {
   "name": "@groeponline/pi-control",
-  "version": "0.1.1",
-  "description": "Pi runtime control and QA extension: sessions, models, tools, state, verification, guardrails, and operator workflows.",
+  "version": "0.1.2",
+  "description": "Pi operator control plane for sessions, models, tools, runtime state, QA verification, guardrails, and reproducible agent workflows.",
   "type": "module",
   "author": "GroepOnline",
   "repository": {
     "type": "git",
     "url": "https://github.com/GroepOnline/pi-control.git"
   },
-  "homepage": "https://pi.dev/packages/@groeponline/pi-control",
+  "homepage": "https://github.com/GroepOnline/pi-control#readme",
   "bugs": {
     "url": "https://github.com/GroepOnline/pi-control/issues"
   },
@@ -27,7 +27,13 @@
     "session-management",
     "model-management",
     "qa",
-    "guardrails"
+    "guardrails",
+    "runtime-control",
+    "agent-ops",
+    "verification",
+    "observability",
+    "state-management",
+    "developer-tools"
   ],
   "pi": {
     "extensions": [
@@ -35,7 +41,8 @@
     ],
     "skills": [
       "./skills"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/GroepOnline/pi-control/main/docs/images/pi-control-hero.svg"
   },
   "files": [
     "extensions/pi-control/index.ts",
@@ -43,7 +50,8 @@
     "extensions/pi-control/tools.ts",
     "extensions/pi-control/commands",
     "skills",
-    "README.md"
+    "README.md",
+    "docs/images/pi-control-hero.svg"
   ],
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
