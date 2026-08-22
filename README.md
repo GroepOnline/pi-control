@@ -66,6 +66,10 @@ npm install
 npm test
 ```
 
+## Privacy and telemetry
+
+`pi-control` does not collect telemetry or send runtime data to external services. It operates on the local Pi process and any state or evidence it handles remains under the operator's control.
+
 ## Source and issues
 
 - Pi catalog: <https://pi.dev/packages/@groeponline/pi-control>
