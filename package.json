@@ -1,0 +1,56 @@
+{
+  "name": "@groeponline/pi-control",
+  "version": "0.1.0",
+  "description": "Pi runtime control and QA extension: sessions, models, tools, state, verification, guardrails, and operator workflows.",
+  "type": "module",
+  "author": "GroepOnline",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GroepOnline/pi-control.git"
+  },
+  "homepage": "https://github.com/GroepOnline/pi-control#readme",
+  "bugs": {
+    "url": "https://github.com/GroepOnline/pi-control/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-extension",
+    "pi-skill",
+    "pi-coding-agent",
+    "groeponline",
+    "agent-control",
+    "session-management",
+    "model-management",
+    "qa",
+    "guardrails"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/pi-control/index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "files": [
+    "extensions/pi-control/index.ts",
+    "extensions/pi-control/guardrails.ts",
+    "extensions/pi-control/tools.ts",
+    "extensions/pi-control/commands",
+    "skills",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "scripts": {
+    "pack:check": "npm pack --dry-run --json"
+  }
+}
