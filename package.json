@@ -8,7 +8,7 @@
     "type": "git",
     "url": "https://github.com/GroepOnline/pi-control.git"
   },
-  "homepage": "https://github.com/GroepOnline/pi-control#readme",
+  "homepage": "https://pi.dev/packages/@groeponline/pi-control",
   "bugs": {
     "url": "https://github.com/GroepOnline/pi-control/issues"
   },
@@ -52,5 +52,6 @@
   },
   "scripts": {
     "pack:check": "npm pack --dry-run --json"
-  }
+  },
+  "license": "MIT"
 }
