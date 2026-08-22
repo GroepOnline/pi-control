@@ -1,0 +1,58 @@
+name: Publish npm package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - README.md
+      - extensions/**
+      - skills/**
+      - .github/workflows/publish-npm.yml
+  workflow_dispatch:
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    if: github.repository == 'GroepOnline/pi-control'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Verify package contents
+        run: npm run pack:check
+      - name: Read package identity
+        id: package
+        run: |
+          echo "name=$(node -p \"require('./package.json').name\")" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+      - name: Check registry
+        id: registry
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version --json >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish to npmjs.org
+        if: steps.registry.outputs.published != 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          test -n "$NODE_AUTH_TOKEN" || { echo 'NPM_TOKEN is required for initial publish' >&2; exit 1; }
+          npm publish --access public --provenance
