@@ -31,8 +31,8 @@ jobs:
         with:
           node-version: '22.x'
           registry-url: 'https://registry.npmjs.org'
-      - name: Verify package contents
-        run: npm run pack:check
+      - name: Pi package release gate
+        run: npm run verify:package
       - name: Read package identity
         id: package
         run: |

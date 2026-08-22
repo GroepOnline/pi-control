@@ -42,7 +42,7 @@
     "skills": [
       "./skills"
     ],
-    "image": "https://raw.githubusercontent.com/GroepOnline/pi-control/main/docs/images/pi-control-hero.svg"
+    "image": "https://raw.githubusercontent.com/GroepOnline/pi-control/main/docs/images/pi-control-hero.png"
   },
   "files": [
     "extensions/pi-control/index.ts",
@@ -59,7 +59,10 @@
     "typebox": "*"
   },
   "scripts": {
-    "pack:check": "npm pack --dry-run --json"
+    "pack:check": "npm pack --dry-run --json",
+    "verify:pi-package": "node scripts/verify-pi-package-contract.mjs",
+    "verify:package": "npm run pack:check && npm run verify:pi-package",
+    "prepublishOnly": "npm run verify:pi-package"
   },
   "license": "MIT"
 }
