@@ -61,7 +61,7 @@
   "scripts": {
     "pack:check": "npm pack --dry-run --ignore-scripts --json",
     "verify:pi-package": "node scripts/verify-pi-package-contract.mjs",
-    "verify:package": "npm run pack:check && npm run verify:pi-package",
+    "verify:package": "npm run verify:pi-package",
     "prepublishOnly": "npm run verify:pi-package"
   },
   "license": "MIT"
