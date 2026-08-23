@@ -198,10 +198,11 @@ const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const importsDependency = (text, dep) => {
   const d = escapeRegExp(dep);
+  const flat = String(text).replace(/\r?\n/g, " ");
   return [
-    new RegExp(`\\b(?:import|export)\\s*(?:type\\s+)?(?:[^;\\n]*?\\s*from\\s*)?["']${d}(?:\\/[^"']*)?["']`),
+    new RegExp(`\\b(?:import|export)\\s*(?:type\\s+)?(?:[^;]*?\\s*from\\s*)?["']${d}(?:\\/[^"']*)?["']`),
     new RegExp(`\\b(?:import|require)\\s*\\(\\s*["']${d}(?:\\/[^"']*)?["']`),
-  ].some((pattern) => pattern.test(text));
+  ].some((pattern) => pattern.test(flat));
 };
 const runtimeFiles = [...packedFiles].filter(runtimePath);
 const runtimeText = runtimeFiles.map((file) => {
