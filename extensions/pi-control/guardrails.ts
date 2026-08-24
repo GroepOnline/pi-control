@@ -26,7 +26,7 @@ export function registerGuardrails(pi: ExtensionAPI) {
         { pattern: /rm\s+-rf\s+~/, reason: "rm -rf ~ is destructief voor je home directory" },
         { pattern: /mkfs/, reason: "mkfs formatteert een schijf" },
         { pattern: /dd\s+if=/, reason: "dd if= kan schijven overschrijven" },
-        { pattern: />\s*\/dev\//, reason: "Directe schijf schrijven" },
+        { pattern: />\s*\/dev\/(?!null\b|stdout\b|stderr\b|stdin\b|tty\b|zero\b|random\b|urandom\b|full\b|shm\b|pts\/)/, reason: "Directe schijf schrijven" },
         { pattern: /:\(\)\s*\{/, reason: "Fork bomb patroon" },
         { pattern: /wget\s+.*\||curl\s+.*\|/, reason: "Pipe van remote naar shell is onveilig" },
       ];
