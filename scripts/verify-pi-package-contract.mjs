@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { importsDependency } from "./package-contract-runtime.mjs";
 
 const DOCS = "https://pi.dev/docs/latest/packages";
 const packageRoot = path.resolve(process.argv[2] || process.cwd());
@@ -195,34 +196,6 @@ const runtimePath = (file) => {
   return codeExt.has(path.extname(file));
 };
 const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-function allNamedSpecifiersAreTypeOnly(clause) {
-  const trimmed = clause.trim();
-  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return false;
-  const body = trimmed.slice(1, -1).trim();
-  if (!body) return false;
-  return body.split(",").every((specifier) => /^type\b/.test(specifier.trim()));
-}
-const importsDependency = (text, dep) => {
-  const d = escapeRegExp(dep);
-  const target = `${d}(?:\\/[^"']*)?`;
-  const flat = String(text).replace(/\r?\n/g, " ");
-  if (
-    new RegExp(`\\bimport\\s+["']${target}["']`).test(flat) ||
-    new RegExp(`\\bimport\\s*\\(\\s*["']${target}["']`).test(flat) ||
-    new RegExp(`\\brequire\\s*\\(\\s*["']${target}["']`).test(flat)
-  ) {
-    return true;
-  }
-  const declarations = new RegExp(`\\b(?:import|export)\\s+([^;]*?)\\s+from\\s+["']${target}["']`, "g");
-  for (const match of flat.matchAll(declarations)) {
-    const clause = match[1].trim();
-    if (/^type\b/.test(clause)) continue;
-    if (allNamedSpecifiersAreTypeOnly(clause)) continue;
-    return true;
-  }
-  return false;
-};
 const runtimeFiles = [...packedFiles].filter(runtimePath);
 const runtimeText = runtimeFiles.map((file) => {
   const local = path.join(packageRoot, file);
