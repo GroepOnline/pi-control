@@ -64,13 +64,27 @@ describe('Bash guard', () => {
   });
 
   it('staat onschuldige /dev redirects toe', async () => {
-    // > , >> en 2> vormen tegen de volledige allowlist uit guardrails.ts
-    const allowed = ['null', 'stdout', 'stderr', 'tty', 'zero', 'random', 'urandom', 'full', 'shm', 'pts/0'];
+    // confirm=false: if the guard fires the test fails instead of auto-confirming
+    const ctx = createMockContext({ ui: { confirm: async () => false, notify: vi.fn(), setStatus: vi.fn() } });
+    const allowed = ['null', 'stdout', 'stderr', 'stdin', 'tty', 'zero', 'random', 'urandom', 'full', 'shm', 'shm/foo', 'pts/0'];
     for (const dev of allowed) {
       for (const op of ['>', '>>', '2>']) {
-        const results = await pi._emit('tool_call', createToolCallEvent('bash', { command: `echo test ${op} /dev/${dev}` }), createMockContext());
+        const results = await pi._emit('tool_call', createToolCallEvent('bash', { command: `echo test ${op} /dev/${dev}` }), ctx);
         expect(results[0]).toBeUndefined();
       }
+    }
+  });
+
+  it('blokkeert /dev path traversal via shm/pts allowlist', async () => {
+    const ctx = createMockContext({ ui: { confirm: async () => false, notify: vi.fn(), setStatus: vi.fn() } });
+    const blocked = [
+      'echo test > /dev/shm/../../etc/passwd',
+      'echo test >> /dev/pts/../sda',
+      'echo test 2> /dev/shm/../sda',
+    ];
+    for (const command of blocked) {
+      const results = await pi._emit('tool_call', createToolCallEvent('bash', { command }), ctx);
+      expect(results[0]).toEqual({ block: true, reason: expect.stringContaining('schijf schrijven') });
     }
   });
 

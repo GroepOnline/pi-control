@@ -11,6 +11,41 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 
+const SAFE_DEV_LEAVES = new Set([
+  "null",
+  "stdout",
+  "stderr",
+  "stdin",
+  "tty",
+  "zero",
+  "random",
+  "urandom",
+  "full",
+]);
+
+function normalizeDevTarget(raw: string): string {
+  return raw.replace(/['"]/g, "").replace(/[,;|&()].*$/, "");
+}
+
+/** True when a redirect target under /dev/ is a real disk/device write. */
+export function isDangerousDevRedirect(cmd: string): boolean {
+  const re = />\s*\/dev\/(\S+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(cmd))) {
+    if (!isSafeDevTarget(match[1])) return true;
+  }
+  return false;
+}
+
+function isSafeDevTarget(raw: string): boolean {
+  const name = normalizeDevTarget(raw);
+  if (!name || name.includes("..")) return false;
+  if (SAFE_DEV_LEAVES.has(name)) return true;
+  if (name === "shm" || name.startsWith("shm/")) return true;
+  if (/^pts\/[0-9]+$/.test(name)) return true;
+  return false;
+}
+
 export function registerGuardrails(pi: ExtensionAPI) {
   // ── Tool call guard — blokkeer gevaarlijke bash commando's ──────────
   // Checkt welke tool wordt aangeroepen en of die veilig is.
@@ -26,10 +61,20 @@ export function registerGuardrails(pi: ExtensionAPI) {
         { pattern: /rm\s+-rf\s+~/, reason: "rm -rf ~ is destructief voor je home directory" },
         { pattern: /mkfs/, reason: "mkfs formatteert een schijf" },
         { pattern: /dd\s+if=/, reason: "dd if= kan schijven overschrijven" },
-        { pattern: />\s*\/dev\/(?!null\b|stdout\b|stderr\b|stdin\b|tty\b|zero\b|random\b|urandom\b|full\b|shm\b|pts\/)/, reason: "Directe schijf schrijven" },
         { pattern: /:\(\)\s*\{/, reason: "Fork bomb patroon" },
         { pattern: /wget\s+.*\||curl\s+.*\|/, reason: "Pipe van remote naar shell is onveilig" },
       ];
+
+      if (isDangerousDevRedirect(cmd)) {
+        const reason = "Directe schijf schrijven";
+        const ok = await ctx.ui.confirm(
+          "⚠️  Gevaarlijk commando gedetecteerd",
+          `${reason}\n\nCommando: ${cmd.slice(0, 200)}\n\nToestaan?`,
+        );
+        if (!ok) {
+          return { block: true, reason };
+        }
+      }
 
       for (const { pattern, reason } of dangerous) {
         if (pattern.test(cmd)) {
