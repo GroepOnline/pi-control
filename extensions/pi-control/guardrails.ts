@@ -11,6 +11,138 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 
+const SAFE_DEV_LEAVES = new Set([
+  "null",
+  "stdout",
+  "stderr",
+  "stdin",
+  "tty",
+  "zero",
+  "random",
+  "urandom",
+  "full",
+]);
+
+interface RedirectOperand {
+  value: string;
+  literal: boolean;
+}
+
+function isShellWordTerminator(char: string): boolean {
+  return /\s/.test(char) || ";|&<>()".includes(char);
+}
+
+/**
+ * Read one bash redirect operand without executing or expanding it.
+ *
+ * A word containing parameter/command expansion is deliberately marked
+ * non-literal. Guardrails cannot know where such an operand resolves at
+ * runtime, so redirect handling fails closed for it.
+ */
+function readRedirectOperand(cmd: string, start: number): RedirectOperand {
+  let i = start;
+  let value = "";
+  let literal = true;
+  let quote: "'" | '"' | null = null;
+  let sawContent = false;
+
+  while (i < cmd.length) {
+    const char = cmd[i]!;
+
+    if (quote === "'") {
+      if (char === "'") {
+        quote = null;
+      } else {
+        value += char;
+        sawContent = true;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (quote === '"') {
+      if (char === '"') {
+        quote = null;
+        i += 1;
+        continue;
+      }
+      if (char === "$" || char === "`") literal = false;
+      if (char === "\\" && i + 1 < cmd.length) {
+        value += cmd[i + 1]!;
+        sawContent = true;
+        i += 2;
+        continue;
+      }
+      value += char;
+      sawContent = true;
+      i += 1;
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      i += 1;
+      continue;
+    }
+    if (char === "$" || char === "`") literal = false;
+    if (char === "\\" && i + 1 < cmd.length) {
+      value += cmd[i + 1]!;
+      sawContent = true;
+      i += 2;
+      continue;
+    }
+    if (isShellWordTerminator(char)) break;
+
+    value += char;
+    sawContent = true;
+    i += 1;
+  }
+
+  // Empty words and unterminated quotes are parse failures: fail closed.
+  if (!sawContent || quote !== null) literal = false;
+  return { value, literal };
+}
+
+function redirectOperands(cmd: string): RedirectOperand[] {
+  const operands: RedirectOperand[] = [];
+
+  for (let i = 0; i < cmd.length; i += 1) {
+    if (cmd[i] !== ">") continue;
+
+    // Skip the second character of >> when the loop reaches it.
+    if (i > 0 && cmd[i - 1] === ">") continue;
+
+    let cursor = i + 1;
+    if (cmd[cursor] === ">" || cmd[cursor] === "|") cursor += 1;
+    while (cursor < cmd.length && /\s/.test(cmd[cursor]!)) cursor += 1;
+
+    // >&1 / 2>&1 duplicates a file descriptor rather than writing a pathname.
+    if (cmd[cursor] === "&" && /^[0-9-]$/.test(cmd[cursor + 1] ?? "")) continue;
+
+    operands.push(readRedirectOperand(cmd, cursor));
+  }
+
+  return operands;
+}
+
+/** True when a redirect can write to an unsafe device or has an unknown target. */
+export function isDangerousDevRedirect(cmd: string): boolean {
+  for (const operand of redirectOperands(cmd)) {
+    if (!operand.literal) return true;
+    if (!operand.value.startsWith("/dev/")) continue;
+    if (!isSafeDevTarget(operand.value.slice("/dev/".length))) return true;
+  }
+  return false;
+}
+
+function isSafeDevTarget(name: string): boolean {
+  if (!name || name.includes("..")) return false;
+  if (SAFE_DEV_LEAVES.has(name)) return true;
+  if (name === "shm" || name.startsWith("shm/")) return true;
+  if (/^pts\/[0-9]+$/.test(name)) return true;
+  return false;
+}
+
 export function registerGuardrails(pi: ExtensionAPI) {
   // ── Tool call guard — blokkeer gevaarlijke bash commando's ──────────
   // Checkt welke tool wordt aangeroepen en of die veilig is.
@@ -26,10 +158,20 @@ export function registerGuardrails(pi: ExtensionAPI) {
         { pattern: /rm\s+-rf\s+~/, reason: "rm -rf ~ is destructief voor je home directory" },
         { pattern: /mkfs/, reason: "mkfs formatteert een schijf" },
         { pattern: /dd\s+if=/, reason: "dd if= kan schijven overschrijven" },
-        { pattern: />\s*\/dev\//, reason: "Directe schijf schrijven" },
         { pattern: /:\(\)\s*\{/, reason: "Fork bomb patroon" },
         { pattern: /wget\s+.*\||curl\s+.*\|/, reason: "Pipe van remote naar shell is onveilig" },
       ];
+
+      if (isDangerousDevRedirect(cmd)) {
+        const reason = "Directe schijf schrijven";
+        const ok = await ctx.ui.confirm(
+          "⚠️  Gevaarlijk commando gedetecteerd",
+          `${reason}\n\nCommando: ${cmd.slice(0, 200)}\n\nToestaan?`,
+        );
+        if (!ok) {
+          return { block: true, reason };
+        }
+      }
 
       for (const { pattern, reason } of dangerous) {
         if (pattern.test(cmd)) {
