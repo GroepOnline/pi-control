@@ -166,7 +166,7 @@ export function runtimeModuleSpecifiers(text) {
     const token = tokens[i];
     if (token.type !== "id") continue;
 
-    if (token.value === "import" || token.value === "export") {
+    if ((token.value === "import" || token.value === "export") && tokens[i - 1]?.value !== ".") {
       const result = declarationSpecifier(tokens, i, token.value);
       if (result?.runtime) found.push(result.specifier);
       continue;
