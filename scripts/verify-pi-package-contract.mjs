@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { importsDependency } from "./package-contract-runtime.mjs";
+import { runtimeModuleSpecifiers } from "./package-contract-runtime.mjs";
 
 const DOCS = "https://pi.dev/docs/latest/packages";
 const packageRoot = path.resolve(process.argv[2] || process.cwd());
@@ -31,7 +31,8 @@ if (!pkg.name) fail("package.json needs a package name");
 if (pkg.private === true) fail("package must not be private");
 if (!Array.isArray(pkg.keywords) || !pkg.keywords.includes("pi-package")) fail('keywords must include "pi-package"');
 if (String(pkg.name || "").startsWith("@groeponline/") && !pkg.keywords?.includes("groeponline")) fail('GroepOnline packages must include the "groeponline" keyword');
-if (typeof pkg.description !== "string" || pkg.description.trim().length < 40 || pkg.description.length > 240) fail("description must be 40-240 characters of useful gallery copy");
+const descriptionLength = typeof pkg.description === "string" ? pkg.description.trim().length : 0;
+if (descriptionLength < 40 || descriptionLength > 240) fail("description must be 40-240 characters of useful gallery copy");
 for (const field of ["author", "license", "repository", "homepage", "bugs"]) {
   if (!pkg[field]) fail(`missing package metadata: ${field}`);
 }
@@ -158,6 +159,9 @@ for (const [key, values] of resourcesByKey) {
   if (positives > 0 && included.size === 0) fail(`pi.${key} resolves to no packaged files after exclusions`);
   resourceFiles.set(key, included);
 }
+if (![...resourceFiles.values()].some((files) => files.size > 0)) {
+  fail("pi manifest must resolve to at least one packaged Pi resource");
+}
 
 const peer = pkg.peerDependencies || {};
 for (const dep of core) {
@@ -189,24 +193,69 @@ if (packed) {
   notes.push(`${packed.files?.length || 0} packed files, ${packed.size || 0} bytes`);
 }
 
-const runtimePath = (file) => {
-  const parts = normalize(file).split("/");
-  if (parts.some((part) => ["test", "tests", "scripts", "docs", "examples", "fixtures", "coverage"].includes(part))) return false;
-  if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file)) return false;
-  return codeExt.has(path.extname(file));
-};
-const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-const runtimeFiles = [...packedFiles].filter(runtimePath);
-const runtimeText = runtimeFiles.map((file) => {
+function dependencyMatches(specifier, dep) {
+  return specifier === dep || specifier.startsWith(`${dep}/`);
+}
+
+function resolveLocalRuntimeModule(fromFile, specifier) {
+  const fromDir = path.posix.dirname(normalize(fromFile));
+  const raw = normalize(path.posix.normalize(path.posix.join(fromDir, specifier)));
+  const candidates = [raw];
+  if (!codeExt.has(path.posix.extname(raw))) {
+    for (const ext of codeExt) candidates.push(`${raw}${ext}`);
+    for (const ext of codeExt) candidates.push(`${raw}/index${ext}`);
+  } else if (raw.endsWith(".js")) {
+    candidates.push(`${raw.slice(0, -3)}.ts`, `${raw.slice(0, -3)}.tsx`);
+  }
+  return candidates.find((candidate) => packedFiles.has(candidate)) || null;
+}
+
+const runtimeEntrypoints = [...(resourceFiles.get("extensions") || [])]
+  .filter((file) => codeExt.has(path.extname(file)));
+if ((resourcesByKey.get("extensions") || []).length > 0 && runtimeEntrypoints.length === 0) {
+  fail("pi.extensions declares resources but resolves to no runtime module entrypoint");
+}
+
+const runtimeQueue = [...runtimeEntrypoints];
+const runtimeSeen = new Set();
+while (runtimeQueue.length > 0) {
+  const file = runtimeQueue.shift();
+  if (runtimeSeen.has(file)) continue;
+  runtimeSeen.add(file);
+
+  if (!packedFiles.has(file)) {
+    fail(`runtime module is not present in npm tarball: ${file}`);
+    continue;
+  }
   const local = path.join(packageRoot, file);
-  return fs.existsSync(local) ? stripComments(fs.readFileSync(local, "utf8")) : "";
-}).join("\n");
-for (const dep of core) {
-  if (importsDependency(runtimeText, dep) && peer[dep] !== "*") fail(`packed runtime imports ${dep}; peerDependencies.${dep} must be "*"`);
+  if (!fs.existsSync(local)) {
+    fail(`runtime module is missing on disk: ${file}`);
+    continue;
+  }
+
+  const source = fs.readFileSync(local, "utf8");
+  for (const specifier of runtimeModuleSpecifiers(source)) {
+    if (specifier.startsWith(".")) {
+      const resolved = resolveLocalRuntimeModule(file, specifier);
+      if (!resolved) {
+        fail(`packed runtime module ${file} imports missing local module ${specifier}`);
+      } else if (!runtimeSeen.has(resolved)) {
+        runtimeQueue.push(resolved);
+      }
+      continue;
+    }
+
+    for (const dep of core) {
+      if (dependencyMatches(specifier, dep) && peer[dep] !== "*") {
+        fail(`packed runtime imports ${dep}; peerDependencies.${dep} must be "*"`);
+      }
+    }
+    if (dependencyMatches(specifier, "@sinclair/typebox") && pkg.dependencies?.["@sinclair/typebox"] === undefined) {
+      fail('packed runtime imports @sinclair/typebox; it is third-party under the current Pi contract and must be in dependencies (Pi core is the separate "typebox" package)');
+    }
+  }
 }
-if (importsDependency(runtimeText, "@sinclair/typebox") && pkg.dependencies?.["@sinclair/typebox"] === undefined) {
-  fail('packed runtime imports @sinclair/typebox; it is third-party under the current Pi contract and must be in dependencies (Pi core is the separate "typebox" package)');
-}
+notes.push(`${runtimeSeen.size} runtime module${runtimeSeen.size === 1 ? "" : "s"} traversed from pi.extensions`);
 
 if (failures.length) {
   console.error("Pi package contract FAILED");
