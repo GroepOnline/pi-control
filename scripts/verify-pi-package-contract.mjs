@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { runtimeModuleSpecifiers } from "./package-contract-runtime.mjs";
+import { npmPackListing, runtimeModuleSpecifiers } from "./package-contract-runtime.mjs";
 
 const DOCS = "https://pi.dev/docs/latest/packages";
 const packageRoot = path.resolve(process.argv[2] || process.cwd());
@@ -172,11 +172,12 @@ for (const dep of core) {
 
 let packed = null;
 try {
-  packed = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--ignore-scripts", "--json"], {
+  packed = npmPackListing(JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--ignore-scripts", "--json"], {
     cwd: packageRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
-  }))[0];
+  })));
+  if (!packed) fail("npm pack --dry-run returned no package listing");
 } catch (error) {
   fail(`npm pack --dry-run failed: ${error.stderr?.toString().trim() || error.message}`);
 }
@@ -205,7 +206,8 @@ function resolveLocalRuntimeModule(fromFile, specifier) {
     for (const ext of codeExt) candidates.push(`${raw}${ext}`);
     for (const ext of codeExt) candidates.push(`${raw}/index${ext}`);
   } else if (raw.endsWith(".js")) {
-    candidates.push(`${raw.slice(0, -3)}.ts`, `${raw.slice(0, -3)}.tsx`);
+    const stem = raw.slice(0, -3);
+    for (const ext of [".ts", ".tsx", ".mjs", ".cjs", ".jsx"]) candidates.push(`${stem}${ext}`);
   }
   return candidates.find((candidate) => packedFiles.has(candidate)) || null;
 }

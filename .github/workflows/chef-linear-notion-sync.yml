@@ -14,6 +14,8 @@ concurrency:
 
 jobs:
   sync:
+    # Public repos do not receive org secrets with visibility: private.
+    if: ${{ secrets.LINEAR_API_KEY != '' }}
     uses: GroepOnline/OrgBeheer/.github/workflows/chef-dev-sync-reusable.yml@main
     secrets:
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}

@@ -185,3 +185,16 @@ export function importsDependency(text, dep) {
     (specifier) => specifier === dep || specifier.startsWith(`${dep}/`),
   );
 }
+
+/** npm 10 returns an array of listings; npm 12 returns `{ [name]: listing }`. */
+export function npmPackListing(parsed) {
+  if (Array.isArray(parsed)) return parsed[0] ?? null;
+  if (parsed && Array.isArray(parsed.files)) return parsed;
+  if (parsed && typeof parsed === "object") {
+    const listings = Object.values(parsed).filter(
+      (value) => value && typeof value === "object" && Array.isArray(value.files),
+    );
+    return listings[0] ?? null;
+  }
+  return null;
+}

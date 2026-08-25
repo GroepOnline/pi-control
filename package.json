@@ -51,6 +51,7 @@
     "extensions/pi-control/commands",
     "skills",
     "README.md",
+    "docs/images/pi-control-hero.png",
     "docs/images/pi-control-hero.svg"
   ],
   "peerDependencies": {

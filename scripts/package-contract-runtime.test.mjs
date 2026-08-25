@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { importsDependency, runtimeModuleSpecifiers } from "./package-contract-runtime.mjs";
+import { importsDependency, npmPackListing, runtimeModuleSpecifiers } from "./package-contract-runtime.mjs";
 
 const dep = "@earendil-works/pi-coding-agent";
 
@@ -66,4 +66,12 @@ test("keeps local runtime specifiers for graph traversal", () => {
 test("matches dependency subpaths but not prefix collisions", () => {
   assert.equal(importsDependency(`import "${dep}/internal";`, dep), true);
   assert.equal(importsDependency(`import "${dep}-extra";`, dep), false);
+});
+
+test("reads npm pack --json from npm 10 arrays and npm 12 name maps", () => {
+  const listing = { files: [{ path: "package.json" }, { path: "extensions/pi-control/index.ts" }] };
+  assert.equal(npmPackListing([listing]), listing);
+  assert.equal(npmPackListing({ "@groeponline/pi-control": listing }), listing);
+  assert.equal(npmPackListing(listing), listing);
+  assert.equal(npmPackListing({}), null);
 });
