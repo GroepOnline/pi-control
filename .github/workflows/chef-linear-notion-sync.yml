@@ -1,6 +1,8 @@
-# On PR events: sync this repo → Linear CHEF child issues (+ Notion when configured).
-# Copy to product repos via scripts/deploy_chef_pr_workflows.sh
-
+# On PR events this file used to call OrgBeheer chef-dev-sync-reusable.
+# Disabled here: this public package does not receive org LINEAR_API_KEY
+# (visibility: private), and reusable-job `if: secrets.*` is invalid
+# ("Unrecognized named-value: secrets"). Keep a skipped job so the copied
+# workflow name does not fail the PR.
 name: CHEF Linear + Notion Sync
 
 on:
@@ -14,12 +16,7 @@ concurrency:
 
 jobs:
   sync:
-    # Public repos do not receive org secrets with visibility: private.
-    if: ${{ secrets.LINEAR_API_KEY != '' }}
-    uses: GroepOnline/OrgBeheer/.github/workflows/chef-dev-sync-reusable.yml@main
-    secrets:
-      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-    with:
-      repo: ${{ github.event.repository.name }}
+    if: false
+    runs-on: ${{ fromJSON('["self-hosted","Linux","X64","pr-isolated"]') }}
+    steps:
+      - run: echo "Linear sync disabled on this public package repo"
