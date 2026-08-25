@@ -60,7 +60,7 @@
   },
   "scripts": {
     "pack:check": "npm pack --dry-run --ignore-scripts --json",
-    "verify:pi-package": "node scripts/verify-pi-package-contract.mjs",
+    "verify:pi-package": "node --test scripts/package-contract-runtime.test.mjs && node scripts/verify-pi-package-contract.mjs",
     "verify:package": "npm run verify:pi-package",
     "prepublishOnly": "npm run verify:pi-package"
   },
