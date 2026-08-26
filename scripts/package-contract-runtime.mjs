@@ -32,6 +32,45 @@ function tokenize(source) {
       continue;
     }
 
+    // A slash can start either division or a regular-expression literal.
+    // Regex literals are valid where an expression can begin; skip their raw
+    // contents so quotes inside character classes cannot become string tokens
+    // and hide a later import declaration.
+    if (char === "/") {
+      const previous = tokens.at(-1);
+      const regexPrefixPunct = new Set(["(", "[", "{", "=", ",", ":", ";", "!", "?", "&", "|", "+", "-", "*", "%", "~"]);
+      const regexPrefixIds = new Set(["return", "throw", "case", "delete", "void", "typeof", "instanceof", "in", "of", "yield", "await"]);
+      const canStartRegex =
+        previous === undefined ||
+        (previous.type === "punct" && regexPrefixPunct.has(previous.value)) ||
+        (previous.type === "id" && regexPrefixIds.has(previous.value));
+
+      if (canStartRegex) {
+        let cursor = i + 1;
+        let inClass = false;
+        let closed = false;
+        while (cursor < text.length && text[cursor] !== "\n") {
+          if (text[cursor] === "\\" && cursor + 1 < text.length) {
+            cursor += 2;
+            continue;
+          }
+          if (text[cursor] === "[") inClass = true;
+          else if (text[cursor] === "]") inClass = false;
+          else if (text[cursor] === "/" && !inClass) {
+            cursor += 1;
+            while (cursor < text.length && /[A-Za-z]/.test(text[cursor])) cursor += 1;
+            closed = true;
+            break;
+          }
+          cursor += 1;
+        }
+        if (closed) {
+          i = cursor;
+          continue;
+        }
+      }
+    }
+
     if (char === '"' || char === "'") {
       const quote = char;
       let value = "";

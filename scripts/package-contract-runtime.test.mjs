@@ -52,6 +52,16 @@ test("ignores comments, literal examples, and member methods", () => {
   }
 });
 
+test("ignores quotes inside regex literals before later imports", () => {
+  const source = `
+    const quoted = /["']/g;
+    const escaped = /foo\\/bar[\"']/i;
+    import { Tool } from "@earendil-works/pi-coding-agent";
+  `;
+  assert.deepEqual(runtimeModuleSpecifiers(source), ["@earendil-works/pi-coding-agent"]);
+  assert.equal(importsDependency(source, dep), true);
+});
+
 test("keeps local runtime specifiers for graph traversal", () => {
   assert.deepEqual(
     runtimeModuleSpecifiers(`
