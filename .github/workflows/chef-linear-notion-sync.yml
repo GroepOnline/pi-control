@@ -14,9 +14,14 @@ concurrency:
   group: chef-linear-notion-${{ github.event.pull_request.number || 'manual' }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   sync:
-    if: false
+    # This package is public today, so keep the compatibility workflow dormant
+    # without using an invalid constant or a forbidden secrets context.
+    if: github.event.repository.private == true
     runs-on: ${{ fromJSON('["self-hosted","Linux","X64","pr-isolated"]') }}
     steps:
       - run: echo "Linear sync disabled on this public package repo"
