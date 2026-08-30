@@ -38,7 +38,10 @@ function tokenize(source) {
     // and hide a later import declaration.
     if (char === "/") {
       const previous = tokens.at(-1);
-      const regexPrefixPunct = new Set(["(", "[", "{", "=", ",", ":", ";", "!", "?", "&", "|", "+", "-", "*", "%", "~"]);
+      const regexPrefixPunct = new Set([
+        "(", "[", "{", "=", ",", ":", ";", "!", "?", "&", "|",
+        "+", "-", "*", "%", "~", ">", "<", "^",
+      ]);
       const regexPrefixIds = new Set(["return", "throw", "case", "delete", "void", "typeof", "instanceof", "in", "of", "yield", "await"]);
       const canStartRegex =
         previous === undefined ||

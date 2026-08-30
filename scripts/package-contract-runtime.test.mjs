@@ -62,6 +62,16 @@ test("ignores quotes inside regex literals before later imports", () => {
   assert.equal(importsDependency(source, dep), true);
 });
 
+test("recognizes regex literals after expression operators before later imports", () => {
+  const source = `
+    const matcher = () => /["']/;
+    const compared = value > /["']/.test(value);
+    import { Tool } from "@earendil-works/pi-coding-agent";
+  `;
+  assert.deepEqual(runtimeModuleSpecifiers(source), ["@earendil-works/pi-coding-agent"]);
+  assert.equal(importsDependency(source, dep), true);
+});
+
 test("keeps local runtime specifiers for graph traversal", () => {
   assert.deepEqual(
     runtimeModuleSpecifiers(`
