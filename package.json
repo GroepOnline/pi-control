@@ -1,6 +1,6 @@
 {
   "name": "@groeponline/pi-control",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pi runtime control and QA extension: sessions, models, tools, state, verification, guardrails, and operator workflows.",
   "type": "module",
   "author": "GroepOnline",
@@ -43,7 +43,10 @@
     "extensions/pi-control/tools.ts",
     "extensions/pi-control/commands",
     "skills",
-    "README.md"
+    "README.md",
+    "ARCHITECTURE.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

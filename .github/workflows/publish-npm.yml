@@ -6,6 +6,9 @@ on:
     paths:
       - package.json
       - README.md
+      - ARCHITECTURE.md
+      - CHANGELOG.md
+      - LICENSE
       - extensions/**
       - skills/**
       - .github/workflows/publish-npm.yml
@@ -33,6 +36,10 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Verify package contents
         run: npm run pack:check
+      - name: Test extension
+        run: |
+          npm ci --prefix extensions/pi-control
+          npm test --prefix extensions/pi-control
       - name: Read package identity
         id: package
         run: |
