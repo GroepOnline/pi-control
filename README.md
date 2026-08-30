@@ -16,6 +16,14 @@ For one session only:
 pi -e npm:@groeponline/pi-control
 ```
 
+[Architecture](ARCHITECTURE.md) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/GroepOnline/pi-control/issues)
+
+## Where it fits
+
+`pi-control` owns **Pi runtime control and verification**: sessions, models, active tools, saved state, and assertions about the current Pi process. It is not the capture/showcase package. For browser/terminal capture, QA evidence recipes, Skill Studio, and showcase rendering use [`@groeponline/pi-agent-control-extension`](https://github.com/GroepOnline/pi-agent-control-extension).
+
+The wider flow is `idea (wishcraft) -> durable mission (missions) -> execution run (orchestrator) -> runtime/evidence verification (pi-control / pi-agent-control-extension)`.
+
 ## What it gives you
 
 | Surface | Purpose |
@@ -30,6 +38,32 @@ pi -e npm:@groeponline/pi-control
 | `pi_verify` | Verify session, tool-output, and behavioral expectations. |
 | Guardrails | Lifecycle and tool-call hooks for bounded operator workflows. |
 | `skills/pi-control` | Packaged operating guidance for control/verify/QA workflows. |
+
+## Tool examples
+
+Agent tools accept structured arguments. These examples show the minimum useful shape rather than pseudocode hidden behind a slash command.
+
+```json
+{"tool":"pi_session","action":"inspect"}
+```
+
+```json
+{"tool":"pi_model","action":"thinking","level":"high"}
+```
+
+```json
+{"tool":"pi_tool","action":"inspect","toolName":"bash"}
+```
+
+```json
+{"tool":"pi_state","action":"save","key":"before-refactor","data":{"phase":"baseline"}}
+```
+
+```json
+{"tool":"pi_verify","action":"session","expectations":{"entries.gt":5}}
+```
+
+For state-changing operations, inspect first, make the smallest change, then verify. `pi_tool set_active` replaces the complete active-tool set, so it should never be used as an additive toggle by assumption.
 
 ## Operating model
 
