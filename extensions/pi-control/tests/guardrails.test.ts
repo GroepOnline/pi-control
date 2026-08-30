@@ -4,8 +4,33 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { registerGuardrails } from '../guardrails';
+import {
+  evaluateBashPolicy,
+  evaluateModelToolPolicy,
+  evaluateSessionToolPolicy,
+  registerGuardrails,
+} from '../guardrails';
 import { createMockPi, createMockContext, createToolCallEvent } from './helpers';
+
+describe('Pure policy engine', () => {
+  it('classifies safe and dangerous bash without UI state', () => {
+    expect(evaluateBashPolicy('ls -la')).toEqual({ kind: 'allow' });
+    expect(evaluateBashPolicy('rm -rf /')).toMatchObject({
+      kind: 'require_approval',
+      reason: expect.stringContaining('destructief'),
+    });
+  });
+
+  it('classifies session and model mutations independently of the adapter', () => {
+    expect(evaluateSessionToolPolicy('list')).toEqual({ kind: 'allow' });
+    expect(evaluateSessionToolPolicy('fork')).toMatchObject({ kind: 'require_approval' });
+    expect(evaluateModelToolPolicy('list', undefined, undefined)).toEqual({ kind: 'allow' });
+    expect(evaluateModelToolPolicy('set', 'openai', 'gpt-test')).toMatchObject({
+      kind: 'require_approval',
+      reason: expect.stringContaining('openai/gpt-test'),
+    });
+  });
+});
 
 describe('Bash guard', () => {
   let pi: any;
@@ -31,6 +56,17 @@ describe('Bash guard', () => {
     expect(results[0]).toBeUndefined();
   });
 
+  it('faalt gesloten wanneer approval niet beschikbaar is', async () => {
+    const ctx = createMockContext({
+      ui: { notify: vi.fn(), setStatus: vi.fn() },
+    });
+    const results = await pi._emit('tool_call', createToolCallEvent('bash', { command: 'rm -rf /' }), ctx);
+    expect(results[0]).toEqual({
+      block: true,
+      reason: expect.stringContaining('approval unavailable'),
+    });
+  });
+
   it('blokkeert rm -rf ~', async () => {
     const ctx = createMockContext({ ui: { confirm: async () => false, notify: vi.fn(), setStatus: vi.fn() } });
     const results = await pi._emit('tool_call', createToolCallEvent('bash', { command: 'rm -rf ~' }), ctx);
@@ -49,10 +85,43 @@ describe('Bash guard', () => {
     expect(results[0]).toEqual({ block: true, reason: expect.stringContaining('schijven overschrijven') });
   });
 
-  it('blokkeert schrijven naar /dev/', async () => {
+  it('blokkeert redirects naar block devices', async () => {
     const ctx = createMockContext({ ui: { confirm: async () => false, notify: vi.fn(), setStatus: vi.fn() } });
-    const results = await pi._emit('tool_call', createToolCallEvent('bash', { command: 'echo test > /dev/null' }), ctx);
-    expect(results[0]).toEqual({ block: true, reason: expect.stringContaining('schijf schrijven') });
+    const blocked = [
+      'echo test > /dev/sda',
+      'echo test > /dev/nvme0n1',
+      'echo test >> /dev/hda',
+      'echo x 2> /dev/vdb',
+    ];
+    for (const command of blocked) {
+      const results = await pi._emit('tool_call', createToolCallEvent('bash', { command }), ctx);
+      expect(results[0]).toEqual({ block: true, reason: expect.stringContaining('schijf schrijven') });
+    }
+  });
+
+  it('staat onschuldige /dev redirects toe', async () => {
+    // confirm=false: if the guard fires the test fails instead of auto-confirming
+    const ctx = createMockContext({ ui: { confirm: async () => false, notify: vi.fn(), setStatus: vi.fn() } });
+    const allowed = ['null', 'stdout', 'stderr', 'stdin', 'tty', 'zero', 'random', 'urandom', 'full', 'shm', 'shm/foo', 'pts/0'];
+    for (const dev of allowed) {
+      for (const op of ['>', '>>', '2>']) {
+        const results = await pi._emit('tool_call', createToolCallEvent('bash', { command: `echo test ${op} /dev/${dev}` }), ctx);
+        expect(results[0]).toBeUndefined();
+      }
+    }
+  });
+
+  it('blokkeert /dev path traversal via shm/pts allowlist', async () => {
+    const ctx = createMockContext({ ui: { confirm: async () => false, notify: vi.fn(), setStatus: vi.fn() } });
+    const blocked = [
+      'echo test > /dev/shm/../../etc/passwd',
+      'echo test >> /dev/pts/../sda',
+      'echo test 2> /dev/shm/../sda',
+    ];
+    for (const command of blocked) {
+      const results = await pi._emit('tool_call', createToolCallEvent('bash', { command }), ctx);
+      expect(results[0]).toEqual({ block: true, reason: expect.stringContaining('schijf schrijven') });
+    }
   });
 
   it('blokkeert fork bomb', async () => {

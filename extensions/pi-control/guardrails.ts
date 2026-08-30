@@ -11,71 +11,258 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 
+const SAFE_DEV_LEAVES = new Set([
+  "null",
+  "stdout",
+  "stderr",
+  "stdin",
+  "tty",
+  "zero",
+  "random",
+  "urandom",
+  "full",
+]);
+
+interface RedirectOperand {
+  value: string;
+  literal: boolean;
+}
+
+export type PolicyDecision =
+  | { kind: "allow" }
+  | { kind: "deny"; reason: string }
+  | { kind: "require_approval"; title: string; reason: string; deniedReason: string };
+
+const ALLOW: PolicyDecision = { kind: "allow" };
+
+const DANGEROUS_BASH_PATTERNS: ReadonlyArray<{ pattern: RegExp; reason: string }> = [
+  { pattern: /rm\s+-rf\s+\//, reason: "rm -rf / is destructief voor het hele systeem" },
+  { pattern: /rm\s+-rf\s+~/, reason: "rm -rf ~ is destructief voor je home directory" },
+  { pattern: /mkfs/, reason: "mkfs formatteert een schijf" },
+  { pattern: /dd\s+if=/, reason: "dd if= kan schijven overschrijven" },
+  { pattern: /:\(\)\s*\{/, reason: "Fork bomb patroon" },
+  { pattern: /wget\s+.*\||curl\s+.*\|/, reason: "Pipe van remote naar shell is onveilig" },
+];
+
+function isShellWordTerminator(char: string): boolean {
+  return /\s/.test(char) || ";|&<>()".includes(char);
+}
+
+/**
+ * Read one bash redirect operand without executing or expanding it.
+ *
+ * A word containing parameter/command expansion is deliberately marked
+ * non-literal. Guardrails cannot know where such an operand resolves at
+ * runtime, so redirect handling fails closed for it.
+ */
+function readRedirectOperand(cmd: string, start: number): RedirectOperand {
+  let i = start;
+  let value = "";
+  let literal = true;
+  let quote: "'" | '"' | null = null;
+  let sawContent = false;
+
+  while (i < cmd.length) {
+    const char = cmd[i]!;
+
+    if (quote === "'") {
+      if (char === "'") {
+        quote = null;
+      } else {
+        value += char;
+        sawContent = true;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (quote === '"') {
+      if (char === '"') {
+        quote = null;
+        i += 1;
+        continue;
+      }
+      if (char === "$" || char === "`") literal = false;
+      if (char === "\\" && i + 1 < cmd.length) {
+        value += cmd[i + 1]!;
+        sawContent = true;
+        i += 2;
+        continue;
+      }
+      value += char;
+      sawContent = true;
+      i += 1;
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      i += 1;
+      continue;
+    }
+    if (char === "$" || char === "`") literal = false;
+    if (char === "\\" && i + 1 < cmd.length) {
+      value += cmd[i + 1]!;
+      sawContent = true;
+      i += 2;
+      continue;
+    }
+    if (isShellWordTerminator(char)) break;
+
+    value += char;
+    sawContent = true;
+    i += 1;
+  }
+
+  // Empty words and unterminated quotes are parse failures: fail closed.
+  if (!sawContent || quote !== null) literal = false;
+  return { value, literal };
+}
+
+function redirectOperands(cmd: string): RedirectOperand[] {
+  const operands: RedirectOperand[] = [];
+
+  for (let i = 0; i < cmd.length; i += 1) {
+    if (cmd[i] !== ">") continue;
+
+    // Skip the second character of >> when the loop reaches it.
+    if (i > 0 && cmd[i - 1] === ">") continue;
+
+    let cursor = i + 1;
+    if (cmd[cursor] === ">" || cmd[cursor] === "|") cursor += 1;
+    while (cursor < cmd.length && /\s/.test(cmd[cursor]!)) cursor += 1;
+
+    // >&1 / 2>&1 duplicates a file descriptor rather than writing a pathname.
+    if (cmd[cursor] === "&" && /^[0-9-]$/.test(cmd[cursor + 1] ?? "")) continue;
+
+    operands.push(readRedirectOperand(cmd, cursor));
+  }
+
+  return operands;
+}
+
+/** True when a redirect can write to an unsafe device or has an unknown target. */
+export function isDangerousDevRedirect(cmd: string): boolean {
+  for (const operand of redirectOperands(cmd)) {
+    if (!operand.literal) return true;
+    if (!operand.value.startsWith("/dev/")) continue;
+    if (!isSafeDevTarget(operand.value.slice("/dev/".length))) return true;
+  }
+  return false;
+}
+
+function isSafeDevTarget(name: string): boolean {
+  if (!name || name.includes("..")) return false;
+  if (SAFE_DEV_LEAVES.has(name)) return true;
+  if (name === "shm" || name.startsWith("shm/")) return true;
+  if (/^pts\/[0-9]+$/.test(name)) return true;
+  return false;
+}
+
+export function evaluateBashPolicy(command: string): PolicyDecision {
+  if (isDangerousDevRedirect(command)) {
+    const reason = "Directe schijf schrijven";
+    return {
+      kind: "require_approval",
+      title: "⚠️  Gevaarlijk commando gedetecteerd",
+      reason,
+      deniedReason: reason,
+    };
+  }
+
+  for (const { pattern, reason } of DANGEROUS_BASH_PATTERNS) {
+    if (pattern.test(command)) {
+      return {
+        kind: "require_approval",
+        title: "⚠️  Gevaarlijk commando gedetecteerd",
+        reason,
+        deniedReason: reason,
+      };
+    }
+  }
+  return ALLOW;
+}
+
+export function evaluateSessionToolPolicy(action: string | undefined): PolicyDecision {
+  if (action !== "switch" && action !== "fork") return ALLOW;
+  return {
+    kind: "require_approval",
+    title: "🔄 Sessie wijziging",
+    reason: `Weet je zeker dat je een sessie ${action} wilt uitvoeren?\n\nDit kan de huidige sessie beïnvloeden.`,
+    deniedReason: "Sessie wijziging geannuleerd door gebruiker",
+  };
+}
+
+export function evaluateModelToolPolicy(
+  action: string | undefined,
+  provider: string | undefined,
+  modelId: string | undefined,
+): PolicyDecision {
+  if (action !== "set") return ALLOW;
+  return {
+    kind: "require_approval",
+    title: "🤖 Model wissel",
+    reason: `Wissel naar model ${provider ?? "?"}/${modelId ?? "?"}?\n\nDit kan de kosten en responskwaliteit beïnvloeden.`,
+    deniedReason: "Model wissel geannuleerd door gebruiker",
+  };
+}
+
+async function enforcePolicyDecision(
+  decision: PolicyDecision,
+  confirm: ((title: string, message: string) => Promise<boolean>) | undefined,
+  detail?: string,
+): Promise<{ block: true; reason: string } | undefined> {
+  if (decision.kind === "allow") return undefined;
+  if (decision.kind === "deny") return { block: true, reason: decision.reason };
+  if (!confirm) {
+    return { block: true, reason: `${decision.deniedReason} (approval unavailable)` };
+  }
+
+  const message = detail
+    ? `${decision.reason}\n\n${detail}\n\nToestaan?`
+    : decision.reason;
+  try {
+    const approved = await confirm(decision.title, message);
+    return approved ? undefined : { block: true, reason: decision.deniedReason };
+  } catch {
+    return { block: true, reason: `${decision.deniedReason} (approval unavailable)` };
+  }
+}
+
 export function registerGuardrails(pi: ExtensionAPI) {
   // ── Tool call guard — blokkeer gevaarlijke bash commando's ──────────
   // Checkt welke tool wordt aangeroepen en of die veilig is.
   // Dit is de eerste guard laag: target-specifieke veiligheidschecks.
   pi.on("tool_call", async (event, ctx) => {
-    // Bash guard: blokkeer destructieve commando's
+    const confirm = typeof ctx.ui?.confirm === "function"
+      ? ctx.ui.confirm.bind(ctx.ui)
+      : undefined;
+
     if (isToolCallEventType("bash", event)) {
-      const cmd = event.input.command ?? "";
-
-      // Gevaarlijke patronen
-      const dangerous = [
-        { pattern: /rm\s+-rf\s+\//, reason: "rm -rf / is destructief voor het hele systeem" },
-        { pattern: /rm\s+-rf\s+~/, reason: "rm -rf ~ is destructief voor je home directory" },
-        { pattern: /mkfs/, reason: "mkfs formatteert een schijf" },
-        { pattern: /dd\s+if=/, reason: "dd if= kan schijven overschrijven" },
-        { pattern: />\s*\/dev\//, reason: "Directe schijf schrijven" },
-        { pattern: /:\(\)\s*\{/, reason: "Fork bomb patroon" },
-        { pattern: /wget\s+.*\||curl\s+.*\|/, reason: "Pipe van remote naar shell is onveilig" },
-      ];
-
-      for (const { pattern, reason } of dangerous) {
-        if (pattern.test(cmd)) {
-          // Vraag gebruiker om bevestiging
-          const ok = await ctx.ui.confirm(
-            "⚠️  Gevaarlijk commando gedetecteerd",
-            `${reason}\n\nCommando: ${cmd.slice(0, 200)}\n\nToestaan?`,
-          );
-          if (!ok) {
-            return { block: true, reason };
-          }
-        }
-      }
+      const command = event.input.command ?? "";
+      return enforcePolicyDecision(
+        evaluateBashPolicy(command),
+        confirm,
+        `Commando: ${command.slice(0, 200)}`,
+      );
     }
 
-    // pi_session guard: bevestig bij sessie wissel/fork
-    // Tweede guard laag: bevestig destructieve sessie operaties
-    // voordat ze uitgevoerd worden.
     if (isToolCallEventType("pi_session", event)) {
-      const action = event.input.action;
-
-      if (action === "switch" || action === "fork") {
-        const ok = await ctx.ui.confirm(
-          "🔄 Sessie wijziging",
-          `Weet je zeker dat je een sessie ${action} wilt uitvoeren?\n\nDit kan de huidige sessie beïnvloeden.`,
-        );
-        if (!ok) {
-          return { block: true, reason: "Sessie wijziging geannuleerd door gebruiker" };
-        }
-      }
+      return enforcePolicyDecision(
+        evaluateSessionToolPolicy(event.input.action),
+        confirm,
+      );
     }
 
-    // pi_model guard: bevestig bij model wissel
-    // Derde guard laag: model wissels hebben kosten implicaties,
-    // dus vraag altijd bevestiging.
     if (isToolCallEventType("pi_model", event)) {
-      if (event.input.action === "set") {
-        const ok = await ctx.ui.confirm(
-          "🤖 Model wissel",
-          `Wissel naar model ${event.input.provider ?? "?"}/${event.input.modelId ?? "?"}?\n\n` +
-          "Dit kan de kosten en responskwaliteit beïnvloeden.",
-        );
-        if (!ok) {
-          return { block: true, reason: "Model wissel geannuleerd door gebruiker" };
-        }
-      }
+      return enforcePolicyDecision(
+        evaluateModelToolPolicy(
+          event.input.action,
+          event.input.provider,
+          event.input.modelId,
+        ),
+        confirm,
+      );
     }
   });
 
