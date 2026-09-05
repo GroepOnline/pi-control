@@ -1,7 +1,7 @@
 {
   "name": "@groeponline/pi-control",
-  "version": "0.1.2",
-  "description": "Pi runtime control and QA extension: sessions, models, tools, state, verification, guardrails, and operator workflows.",
+  "version": "0.1.3",
+  "description": "Pi extension and operator control plane: manage agent sessions, switch models, gate tools, snapshot runtime state, enforce guardrails, and verify changes with QA evidence.",
   "type": "module",
   "author": "GroepOnline",
   "repository": {
@@ -27,7 +27,18 @@
     "session-management",
     "model-management",
     "qa",
-    "guardrails"
+    "guardrails",
+    "runtime-control",
+    "agent-ops",
+    "verification",
+    "observability",
+    "state-management",
+    "developer-tools",
+    "pi-verify",
+    "agent-control-plane",
+    "qa-evidence",
+    "session-fork",
+    "evidence"
   ],
   "pi": {
     "extensions": [
@@ -35,7 +46,8 @@
     ],
     "skills": [
       "./skills"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/GroepOnline/pi-control/main/docs/images/pi-control-hero.png"
   },
   "files": [
     "extensions/pi-control/index.ts",
@@ -46,7 +58,9 @@
     "README.md",
     "ARCHITECTURE.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/images/pi-control-hero.png",
+    "docs/images/pi-control-hero.svg"
   ],
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
@@ -54,7 +68,10 @@
     "typebox": "*"
   },
   "scripts": {
-    "pack:check": "npm pack --dry-run --json"
+    "pack:check": "npm pack --dry-run --ignore-scripts --json",
+    "verify:pi-package": "node --test scripts/package-contract-runtime.test.mjs && node scripts/verify-pi-package-contract.mjs",
+    "verify:package": "npm run verify:pi-package",
+    "prepublishOnly": "npm run verify:pi-package"
   },
   "license": "MIT"
 }
