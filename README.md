@@ -1,72 +1,66 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/GroepOnline/pi-control/main/docs/images/pi-control-hero.svg" alt="pi-control: capture, change, verify, evidence" width="100%">
+  <img src="https://raw.githubusercontent.com/GroepOnline/pi-control/main/docs/images/pi-control-hero.svg" alt="Pi Control: inspect, change, verify" width="100%">
 </p>
 
-# @groeponline/pi-control
+<h1 align="center">Pi Control</h1>
 
-**A Pi extension that gives humans and coding agents a control plane over the live Pi process** — agent sessions, model switching, tool gating, saved runtime state, QA verification, and guardrails — with every change backed by evidence from the same process it controls.
+<p align="center"><strong>Inspect the live Pi process, change it deliberately, and verify the result.</strong><br>Control sessions, models, tools and saved runtime state from the same process your agent is already using.</p>
 
-`pi-control` does not replace Pi's agent runtime, spawn daemons, or mirror state into a second store. It operates directly on Pi's own session tree, model registry, tool inventory, and state history, then verifies what actually happened.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@groeponline/pi-control"><img src="https://img.shields.io/npm/v/@groeponline/pi-control.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@groeponline/pi-control"><img src="https://img.shields.io/npm/dm/@groeponline/pi-control.svg?label=downloads" alt="npm downloads"></a>
+  <a href="https://pi.dev/packages/@groeponline/pi-control"><img src="https://img.shields.io/badge/Pi-package-9b59b6.svg" alt="Pi package"></a>
+  <a href="https://github.com/GroepOnline/pi-control/actions/workflows/publish-npm.yml"><img src="https://github.com/GroepOnline/pi-control/actions/workflows/publish-npm.yml/badge.svg" alt="verify"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT license"></a>
+</p>
 
-[![npm](https://img.shields.io/npm/v/@groeponline/pi-control.svg)](https://www.npmjs.com/package/@groeponline/pi-control) [![downloads](https://img.shields.io/npm/dm/@groeponline/pi-control.svg?label=downloads)](https://www.npmjs.com/package/@groeponline/pi-control) [![Pi package](https://img.shields.io/badge/Pi-package-9b59b6.svg)](https://pi.dev/packages/@groeponline/pi-control) [![verify](https://github.com/GroepOnline/pi-control/actions/workflows/publish-npm.yml/badge.svg)](https://github.com/GroepOnline/pi-control/actions/workflows/publish-npm.yml) ![License](https://img.shields.io/badge/license-MIT-green.svg)
-
-## At a glance
-
-- **5 agent tools** — `pi_session`, `pi_model`, `pi_tool`, `pi_state`, `pi_verify`
-- **3 operator commands** — `/pi-demo`, `/pi-verify`, `/pi-qa`
-- **Guardrails** — destructive shell and unsafe mutation patterns are denied before execution
-- **1 packaged skill** — `pi-control` operating discipline (capture → change → verify → report)
-- **No telemetry, no daemon, no second runtime** — in-process against the live Pi host
-
-## Install
-
-Persistent (all Pi sessions):
+## Start in 10 seconds
 
 ```bash
 pi install npm:@groeponline/pi-control
 ```
 
-One session only:
+Try it for one session first:
 
 ```bash
 pi -e npm:@groeponline/pi-control
 ```
 
-Pi loads both the extension and the packaged skill from the package manifest — no extra configuration.
+Pi loads the extension and its packaged operating skill automatically.
 
-## Quick start
+## Three useful things to do first
 
-**Verify a claim about the runtime:**
+### Verify what Pi is actually running
 
 ```json
 {"tool":"pi_verify","action":"session","expectations":{"entries.gt":5}}
 ```
 
-**Switch model and thinking level, then confirm:**
+### Change thinking level and prove it stuck
 
 ```json
 {"tool":"pi_model","action":"thinking","level":"high"}
-```
-
-```json
 {"tool":"pi_verify","action":"model","expectations":{"thinkingLevel":"high"}}
 ```
 
-**Snapshot state before a risky change, restore it after:**
-
-```json
-{"tool":"pi_state","action":"save","key":"before-refactor","data":{"phase":"baseline"}}
-```
-
-```json
-{"tool":"pi_state","action":"restore","key":"before-refactor"}
-```
-
-**Gate the toolset for a bounded run:**
+### Gate the toolset for a bounded run
 
 ```json
 {"tool":"pi_tool","action":"set_active","tools":["read","bash"]}
 ```
+
+`set_active` replaces the full active tool set, so inspect first and keep the set as small as the task allows.
+
+## What it controls
+
+- **Sessions** — inspect, fork, switch, compact, navigate, label and rename.
+- **Models** — list providers, switch model and change thinking level.
+- **Tools** — inspect and replace the active tool set.
+- **State** — save, diff and restore named runtime snapshots.
+- **Verification** — assert session, model, tool and state expectations against the live process.
+- **Guardrails** — block destructive shell and unsafe mutation patterns before execution.
+
+There is no daemon and no second state store. Pi Control works against Pi's own session tree, model registry, tool inventory and runtime state.
 
 ## Commands
 
