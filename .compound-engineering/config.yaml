@@ -1,0 +1,6 @@
+# Compound Engineering — tracked defaults.
+# Live checkout overrides: config.local.yaml (gitignored).
+# This overlay is CLI-portable. The native Cursor plugin is Cursor-only
+# fallback when this directory is absent. Pi never enables that plugin.
+
+docs_root: .compound-engineering/artifacts
