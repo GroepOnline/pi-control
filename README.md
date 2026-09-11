@@ -4,7 +4,7 @@
 
 <h1 align="center">Pi Control</h1>
 
-<p align="center"><strong>Inspect the live Pi process, change it deliberately, and verify the result.</strong><br>Control sessions, models, tools and saved runtime state from the same process your agent is already using.</p>
+<p align="center"><strong>Control Pi from inside the Pi process you are already running.</strong><br>Inspect sessions, models, tools and saved state, make one bounded change, then verify the live result against the same runtime.</p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@groeponline/pi-control"><img src="https://img.shields.io/npm/v/@groeponline/pi-control.svg" alt="npm version"></a>
@@ -27,6 +27,8 @@ pi -e npm:@groeponline/pi-control
 ```
 
 Pi loads the extension and its packaged operating skill automatically.
+
+The hero above is the operating contract: capture current state, change the smallest surface possible, verify what Pi is actually running, and keep the evidence. There is no sidecar daemon or shadow state store.
 
 ## Three useful things to do first
 
