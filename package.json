@@ -72,7 +72,7 @@
     "verify:pi-package": "node --test scripts/package-contract-runtime.test.mjs && node scripts/verify-pi-package-contract.mjs",
     "verify:package": "npm run verify:pi-package",
     "prepublishOnly": "npm run verify:pi-package",
-    "prepare": "husky"
+    "prepare": "command -v husky >/dev/null 2>&1 && husky || true"
   },
   "license": "MIT",
   "devDependencies": {
